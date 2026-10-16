@@ -1,0 +1,52 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Категории — Личные финансы</title>
+    <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Golos+Text:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+    <header>
+        <div class="logo">Личные финансы</div>
+    </header>
+
+    <div class="tabs">
+        <a href="/Categories.html" class="tab active">Категории</a>
+        <a href="/ExpenseItems.html" class="tab">Статьи расходов</a>
+        <a href="/Transactions.html" class="tab">Транзакции</a>
+    </div>
+
+    <div class="page">
+        <div class="card">
+            <div class="form-row">
+                <div class="field">
+                    <label>Название</label>
+                    <input id="cat-name" type="text" placeholder="Например: Питание" style="width:220px" />
+                </div>
+                <button class="btn btn-primary" type="button" id="cat-add">+ Добавить</button>
+            </div>
+        </div>
+
+        <div id="cat-msg"></div>
+
+        <div class="card" style="padding:0;overflow:hidden">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cat-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/categories.js"></script>
+</body>
+</html>

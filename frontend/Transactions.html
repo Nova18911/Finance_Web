@@ -1,0 +1,60 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Транзакции — Личные финансы</title>
+    <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Golos+Text:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+    <header>
+        <div class="logo">Личные финансы</div>
+    </header>
+
+    <div class="tabs">
+        <a href="/Categories.html" class="tab">Категории</a>
+        <a href="/ExpenseItems.html" class="tab">Статьи расходов</a>
+        <a href="/Transactions.html" class="tab active">Транзакции</a>
+    </div>
+
+    <div class="page">
+        <div class="card">
+            <div class="form-row">
+                <div class="field">
+                    <label>Дата</label>
+                    <input id="tx-date" type="date" style="width:150px" />
+                </div>
+                <div class="field">
+                    <label>Сумма, ₽</label>
+                    <input id="tx-amount" type="number" min="0.01" step="0.01" placeholder="0.00" style="width:130px" />
+                </div>
+                <div class="field">
+                    <label>Статья расхода</label>
+                    <select id="tx-item" style="width:200px">
+                        <option disabled selected value="">— выберите —</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Комментарий</label>
+                    <input id="tx-comment" type="text" placeholder="Необязательно" style="width:180px" />
+                </div>
+                <button class="btn btn-primary" type="button" id="tx-add">+ Добавить</button>
+            </div>
+        </div>
+
+        <div id="tx-msg"></div>
+
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+            <button class="btn btn-ghost btn-sm" type="button" id="tx-prev">← Пред.</button>
+            <span id="tx-month-label" style="font-family:'Unbounded',sans-serif;font-size:13px;"></span>
+            <button class="btn btn-ghost btn-sm" type="button" id="tx-next">След. →</button>
+        </div>
+
+        <div id="tx-list"></div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/transactions.js"></script>
+</body>
+</html>
