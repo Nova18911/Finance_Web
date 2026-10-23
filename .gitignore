@@ -14,3 +14,4 @@ backend/blueprints/__pycache__/__init__.cpython-313.pyc
 backend/blueprints/__pycache__/categories.cpython-313.pyc
 backend/blueprints/__pycache__/expense_items.cpython-313.pyc
 backend/blueprints/__pycache__/transactions.cpython-313.pyc
+backend/__pycache__/main.cpython-313.pyc

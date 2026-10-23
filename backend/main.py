@@ -18,11 +18,6 @@ app.register_blueprint(expense_items_bp)
 app.register_blueprint(transactions_bp)
 
 
-@app.get("/api/health")
-def health():
-    return jsonify({"status": "ok"})
-
-
 @app.get("/")
 def index():
     return send_from_directory(FRONTEND_DIR, "Categories.html")
@@ -54,4 +49,4 @@ def js_files(filename):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8000, debug=True)
+    app.run(host="127.0.0.1", port=8010, debug=True)

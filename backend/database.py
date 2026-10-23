@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-from connect import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS
+from backend.connect import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS
 
 DATABASE_URL = (
     f"postgresql+pg8000://{DB_USER}:{DB_PASS}"

@@ -1,4 +1,4 @@
-﻿const API = 'http://127.0.0.1:8000/api';
+﻿const API = 'http://127.0.0.1:8010/api';
 
 async function apiGet(path) {
     const r = await fetch(`${API}${path}`);
@@ -65,7 +65,6 @@ function showMsg(el, ok, text) {
     setTimeout(() => { el.style.display = 'none'; }, 3500);
 }
 
-// стикеры по ТЗ
 function stickerClass(total) {
     if (total < 500) return 'sticker-green';
     if (total <= 2000) return 'sticker-yellow';
