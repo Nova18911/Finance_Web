@@ -5,3 +5,12 @@ __pycache__/main.cpython-313.pyc
 .idea/inspectionProfiles/Project_Default.xml
 .idea/inspectionProfiles/profiles_settings.xml
 .idea/Finance_Web.iml
+backend/__pycache__/__init__.cpython-313.pyc
+backend/__pycache__/connect.cpython-313.pyc
+backend/__pycache__/database.cpython-313.pyc
+backend/__pycache__/models.cpython-313.pyc
+backend/__pycache__/schemas.cpython-313.pyc
+backend/blueprints/__pycache__/__init__.cpython-313.pyc
+backend/blueprints/__pycache__/categories.cpython-313.pyc
+backend/blueprints/__pycache__/expense_items.cpython-313.pyc
+backend/blueprints/__pycache__/transactions.cpython-313.pyc
