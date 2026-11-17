@@ -1,10 +1,7 @@
 from flask import Blueprint, jsonify, request
-from sqlalchemy import select, func
-from sqlalchemy.orm import joinedload
 from pydantic import ValidationError
 
-from backend.database import get_session
-from backend.models import Category, ExpenseItem, Transaction
+from backend.connect import get_db_connection
 from backend.schemas import ExpenseItemCreate, ExpenseItemUpdate
 
 expense_items_bp = Blueprint(
@@ -12,118 +9,177 @@ expense_items_bp = Blueprint(
 )
 
 
-def item_to_dict(it: ExpenseItem) -> dict:
+def item_to_dict(row):
     return {
-        "id": it.id,
-        "name": it.name,
-        "categoryId": it.category_id,
-        "isActive": it.is_active,
-        "category": (
-            {"id": it.category.id, "name": it.category.name}
-            if it.category
-            else None
-        ),
+        "id": row[0],
+        "name": row[1],
+        "categoryId": row[2],
+        "isActive": row[3],
+        "category": {
+            "id": row[4],
+            "name": row[5]
+        } if row[4] is not None else None
     }
 
 
 @expense_items_bp.get("")
 def list_items():
-    db = get_session()
+    conn = get_db_connection()
     try:
-        rows = db.scalars(
-            select(ExpenseItem)
-            .options(joinedload(ExpenseItem.category))
-            .order_by(ExpenseItem.id)
-        ).unique().all()
-        return jsonify([item_to_dict(i) for i in rows])
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT ei.id, ei.name, ei.category_id, ei.is_active,
+                   c.id, c.name
+            FROM expense_items ei
+            LEFT JOIN categories c ON ei.category_id = c.id
+            ORDER BY ei.id
+            """
+        )
+        rows = cursor.fetchall()
+
+        return jsonify([item_to_dict(row) for row in rows])
     finally:
-        db.close()
+        conn.close()
 
 
 @expense_items_bp.post("")
 def create_item():
-    db = get_session()
     try:
-        try:
-            body = ExpenseItemCreate.model_validate(request.get_json() or {})
-        except ValidationError as e:
-            return jsonify({"detail": e.errors()}), 400
+        body = ExpenseItemCreate.model_validate(request.get_json() or {})
+    except ValidationError as e:
+        return jsonify({"detail": e.errors()}), 400
 
-        cat = db.get(Category, body.categoryId)
-        if not cat:
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT id FROM categories WHERE id = %s",
+            (body.categoryId,)
+        )
+        if not cursor.fetchone():
             return jsonify({"detail": "Категория не найдена"}), 400
 
-        item = ExpenseItem(
-            name=body.name.strip(),
-            category_id=body.categoryId,
-            is_active=body.isActive,
+        cursor.execute(
+            """
+            INSERT INTO expense_items (name, category_id, is_active)
+            VALUES (%s, %s, %s)
+            RETURNING id
+            """,
+            (body.name.strip(), body.categoryId, body.isActive)
         )
-        db.add(item)
-        db.commit()
-        db.refresh(item)
-        # подгрузить category
-        item = db.scalars(
-            select(ExpenseItem)
-            .options(joinedload(ExpenseItem.category))
-            .where(ExpenseItem.id == item.id)
-        ).unique().one()
-        return jsonify(item_to_dict(item)), 201
+        item_id = cursor.fetchone()[0]
+        conn.commit()
+
+        cursor.execute(
+            """
+            SELECT ei.id, ei.name, ei.category_id, ei.is_active,
+                   c.id, c.name
+            FROM expense_items ei
+            LEFT JOIN categories c ON ei.category_id = c.id
+            WHERE ei.id = %s
+            """,
+            (item_id,)
+        )
+        row = cursor.fetchone()
+
+        return jsonify(item_to_dict(row)), 201
+    except Exception:
+        conn.rollback()
+        raise
     finally:
-        db.close()
+        conn.close()
 
 
 @expense_items_bp.put("/<int:item_id>")
 def update_item(item_id: int):
-    db = get_session()
     try:
-        try:
-            body = ExpenseItemUpdate.model_validate(request.get_json() or {})
-        except ValidationError as e:
-            return jsonify({"detail": e.errors()}), 400
+        body = ExpenseItemUpdate.model_validate(request.get_json() or {})
+    except ValidationError as e:
+        return jsonify({"detail": e.errors()}), 400
 
-        item = db.get(ExpenseItem, item_id)
-        if not item:
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT id FROM expense_items WHERE id = %s",
+            (item_id,)
+        )
+        if not cursor.fetchone():
             return jsonify({"detail": "Статья не найдена"}), 404
 
-        cat = db.get(Category, body.categoryId)
-        if not cat:
+        cursor.execute(
+            "SELECT id FROM categories WHERE id = %s",
+            (body.categoryId,)
+        )
+        if not cursor.fetchone():
             return jsonify({"detail": "Категория не найдена"}), 400
 
-        item.name = body.name.strip()
-        item.category_id = body.categoryId
-        item.is_active = body.isActive
-        db.commit()
+        cursor.execute(
+            """
+            UPDATE expense_items
+            SET name = %s, category_id = %s, is_active = %s
+            WHERE id = %s
+            """,
+            (body.name.strip(), body.categoryId, body.isActive, item_id)
+        )
+        conn.commit()
 
-        item = db.scalars(
-            select(ExpenseItem)
-            .options(joinedload(ExpenseItem.category))
-            .where(ExpenseItem.id == item_id)
-        ).unique().one()
-        return jsonify(item_to_dict(item))
+        cursor.execute(
+            """
+            SELECT ei.id, ei.name, ei.category_id, ei.is_active,
+                   c.id, c.name
+            FROM expense_items ei
+            LEFT JOIN categories c ON ei.category_id = c.id
+            WHERE ei.id = %s
+            """,
+            (item_id,)
+        )
+        row = cursor.fetchone()
+
+        return jsonify(item_to_dict(row))
+    except Exception:
+        conn.rollback()
+        raise
     finally:
-        db.close()
+        conn.close()
 
 
 @expense_items_bp.delete("/<int:item_id>")
 def delete_item(item_id: int):
-    db = get_session()
+    conn = get_db_connection()
     try:
-        item = db.get(ExpenseItem, item_id)
-        if not item:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT id FROM expense_items WHERE id = %s",
+            (item_id,)
+        )
+        if not cursor.fetchone():
             return jsonify({"detail": "Статья не найдена"}), 404
 
-        tx_count = db.scalar(
-            select(func.count(Transaction.id)).where(
-                Transaction.expense_item_id == item_id
-            )
+        cursor.execute(
+            "SELECT COUNT(*) FROM transactions WHERE expense_item_id = %s",
+            (item_id,)
         )
-        if tx_count and tx_count > 0:
-            return jsonify(
-                {"detail": "Нельзя удалить статью: есть связанные транзакции"}
-            ), 400
+        tx_count = cursor.fetchone()[0]
 
-        db.delete(item)
-        db.commit()
+        if tx_count > 0:
+            return jsonify({
+                "detail": "Нельзя удалить статью: есть связанные транзакции"
+            }), 400
+
+        cursor.execute(
+            "DELETE FROM expense_items WHERE id = %s",
+            (item_id,)
+        )
+        conn.commit()
+
         return "", 204
+    except Exception:
+        conn.rollback()
+        raise
     finally:
-        db.close()
+        conn.close()

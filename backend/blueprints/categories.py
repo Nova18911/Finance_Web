@@ -1,92 +1,139 @@
 from flask import Blueprint, jsonify, request
-from sqlalchemy import select, func
 from pydantic import ValidationError
 
-from backend.database import get_session
-from backend.models import Category, ExpenseItem, Transaction
+from backend.connect import get_db_connection
 from backend.schemas import CategoryCreate, CategoryUpdate
 
 categories_bp = Blueprint("categories", __name__, url_prefix="/api/Categories")
 
 
-def category_to_dict(c: Category) -> dict:
-    return {"id": c.id, "name": c.name}
-
-
 @categories_bp.get("")
 def list_categories():
-    db = get_session()
+    conn = get_db_connection()
     try:
-        rows = db.scalars(select(Category).order_by(Category.id)).all()
-        return jsonify([category_to_dict(c) for c in rows])
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name FROM categories ORDER BY id")
+        rows = cursor.fetchall()
+
+        return jsonify([
+            {"id": row[0], "name": row[1]}
+            for row in rows
+        ])
     finally:
-        db.close()
+        conn.close()
 
 
 @categories_bp.post("")
 def create_category():
-    db = get_session()
     try:
-        try:
-            body = CategoryCreate.model_validate(request.get_json() or {})
-        except ValidationError as e:
-            return jsonify({"detail": e.errors()}), 400
+        body = CategoryCreate.model_validate(request.get_json() or {})
+    except ValidationError as e:
+        return jsonify({"detail": e.errors()}), 400
 
-        name = body.name.strip()
-        exists = db.scalar(select(Category).where(Category.name == name))
-        if exists:
+    name = body.name.strip()
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT id FROM categories WHERE name = %s",
+            (name,)
+        )
+        if cursor.fetchone():
             return jsonify({"detail": "Категория с таким именем уже есть"}), 400
 
-        cat = Category(name=name)
-        db.add(cat)
-        db.commit()
-        db.refresh(cat)
-        return jsonify(category_to_dict(cat)), 201
+        cursor.execute(
+            "INSERT INTO categories (name) VALUES (%s) RETURNING id",
+            (name,)
+        )
+        category_id = cursor.fetchone()[0]
+        conn.commit()
+
+        return jsonify({"id": category_id, "name": name}), 201
+    except Exception:
+        conn.rollback()
+        raise
     finally:
-        db.close()
+        conn.close()
 
 
 @categories_bp.put("/<int:category_id>")
 def update_category(category_id: int):
-    db = get_session()
     try:
-        try:
-            body = CategoryUpdate.model_validate(request.get_json() or {})
-        except ValidationError as e:
-            return jsonify({"detail": e.errors()}), 400
+        body = CategoryUpdate.model_validate(request.get_json() or {})
+    except ValidationError as e:
+        return jsonify({"detail": e.errors()}), 400
 
-        cat = db.get(Category, category_id)
-        if not cat:
+    name = body.name.strip()
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT id FROM categories WHERE id = %s",
+            (category_id,)
+        )
+        if not cursor.fetchone():
             return jsonify({"detail": "Категория не найдена"}), 404
 
-        cat.name = body.name.strip()
-        db.commit()
-        db.refresh(cat)
-        return jsonify(category_to_dict(cat))
+        cursor.execute(
+            """
+            UPDATE categories
+            SET name = %s
+            WHERE id = %s
+            """,
+            (name, category_id)
+        )
+        conn.commit()
+
+        return jsonify({"id": category_id, "name": name})
+    except Exception:
+        conn.rollback()
+        raise
     finally:
-        db.close()
+        conn.close()
 
 
 @categories_bp.delete("/<int:category_id>")
 def delete_category(category_id: int):
-    db = get_session()
+    conn = get_db_connection()
     try:
-        cat = db.get(Category, category_id)
-        if not cat:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT id FROM categories WHERE id = %s",
+            (category_id,)
+        )
+        if not cursor.fetchone():
             return jsonify({"detail": "Категория не найдена"}), 404
 
-        tx_count = db.scalar(
-            select(func.count(Transaction.id))
-            .join(ExpenseItem, Transaction.expense_item_id == ExpenseItem.id)
-            .where(ExpenseItem.category_id == category_id)
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM transactions t
+            JOIN expense_items ei ON t.expense_item_id = ei.id
+            WHERE ei.category_id = %s
+            """,
+            (category_id,)
         )
-        if tx_count and tx_count > 0:
-            return jsonify(
-                {"detail": "Нельзя удалить категорию: есть связанные транзакции"}
-            ), 400
+        tx_count = cursor.fetchone()[0]
 
-        db.delete(cat)
-        db.commit()
+        if tx_count > 0:
+            return jsonify({
+                "detail": "Нельзя удалить категорию: есть связанные транзакции"
+            }), 400
+
+        cursor.execute(
+            "DELETE FROM categories WHERE id = %s",
+            (category_id,)
+        )
+        conn.commit()
+
         return "", 204
+    except Exception:
+        conn.rollback()
+        raise
     finally:
-        db.close()
+        conn.close()

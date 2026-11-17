@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 
 from backend.blueprints.categories import categories_bp
@@ -49,4 +49,4 @@ def js_files(filename):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8010, debug=True)
+    app.run(host="0.0.0.0", port=8010, debug=True)
